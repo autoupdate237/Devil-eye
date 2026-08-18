@@ -24,7 +24,7 @@ PORT = int(os.environ.get("PORT", 5000))
 # Render স্বয়ংক্রিয়ভাবে RENDER_EXTERNAL_URL সেট করে দেয়
 PUBLIC_URL = os.environ.get("RENDER_EXTERNAL_URL", os.environ.get("PUBLIC_URL", "https://your-app.onrender.com"))
 
-if TOKEN == "YOUR_BOT_TOKEN_HERE":
+if TOKEN == "8677737961:AAEFlgm4L9CLXY508uB9l6mCl8rSYeYxAwk":
     print("⚠️ Warning: TELEGRAM_TOKEN environment variable not set! Using placeholder.")
 
 BOT_API = "https://api.telegram.org/bot" + TOKEN
