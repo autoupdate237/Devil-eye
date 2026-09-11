@@ -30,7 +30,7 @@ jobs:
         run: python -m pip install --upgrade pip pyinstaller
 
       - name: Run test suite (any-OS core tests)
-        run: python -m unittest discover -s tests
+        run: python -m unittest discover -s tests -v
 
       - name: Generate icon (in case it is missing)
         run: |

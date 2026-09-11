@@ -42,8 +42,11 @@ class PipelineTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        registry.all_collectors = ORIGINAL_ALL
-        orch_mod.all_collectors = ORIGINAL_ALL
+        try:
+            cls.orch.store.close()   # release the SQLite handle (Windows cleanup)
+        finally:
+            registry.all_collectors = ORIGINAL_ALL
+            orch_mod.all_collectors = ORIGINAL_ALL
 
     def test_scan_completes_with_verdict(self):
         self.assertIsNotNone(self.session.verdict)
@@ -110,11 +113,12 @@ class CollectorIsolationTest(unittest.TestCase):
 
         _use_collectors([FakeWindowsHostCollector(), Broken()])
         try:
-            with tempfile.TemporaryDirectory() as tmp:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
                 orch = Orchestrator(workspace=Path(tmp))
                 session = orch.run(mode="scan")
                 self.assertIsNotNone(session.verdict)
                 self.assertTrue(any("processes" in l.source for l in session.limitations))
+                orch.store.close()
         finally:
             registry.all_collectors = ORIGINAL_ALL
             orch_mod.all_collectors = ORIGINAL_ALL
@@ -129,7 +133,7 @@ class ThreadedScanTest(unittest.TestCase):
 
         _use_collectors([FakeWindowsHostCollector()])
         try:
-            with tempfile.TemporaryDirectory() as tmp:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
                 orch = Orchestrator(workspace=Path(tmp))
                 errors = []
 
@@ -146,6 +150,7 @@ class ThreadedScanTest(unittest.TestCase):
                 for t in threads:
                     t.join(timeout=30)
                 self.assertEqual(errors, [])
+                orch.store.close()
         finally:
             registry.all_collectors = ORIGINAL_ALL
             orch_mod.all_collectors = ORIGINAL_ALL
@@ -158,12 +163,13 @@ class NonWindowsDegradationTest(unittest.TestCase):
     def test_empty_host_still_reports(self):
         _use_collectors([])
         try:
-            with tempfile.TemporaryDirectory() as tmp:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
                 orch = Orchestrator(workspace=Path(tmp))
                 session = orch.run(mode="scan")
                 self.assertIsNotNone(session.verdict)
                 self.assertEqual(session.evidence_count, 0)
                 self.assertLessEqual(session.verdict.score, 10.0)
+                orch.store.close()
         finally:
             registry.all_collectors = ORIGINAL_ALL
             orch_mod.all_collectors = ORIGINAL_ALL
