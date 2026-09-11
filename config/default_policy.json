@@ -1,0 +1,12 @@
+{
+  "protected_processes": [
+    {"name": "r5apex.exe", "path": ""},
+    {"name": "fortniteclient-win64-shipping.exe", "path": ""},
+    {"name": "valorant-win64.exe", "path": ""},
+    {"name": "game.exe", "path": ""}
+  ],
+  "sensitivity": "balanced",
+  "memory_inspection": "protected",
+  "etw_enabled": false,
+  "score_thresholds": {"low": 10.0, "suspicious": 25.0, "high": 50.0, "critical": 75.0}
+}

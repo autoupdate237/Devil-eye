@@ -1,0 +1,12 @@
+{
+  "_comment": "User-managed allowlist. kind: hash|publisher|path_prefix|directory. action: suppress|dampen.",
+  "entries": [
+    {"kind": "publisher", "value": "Microsoft Windows", "action": "dampen", "factor": 0.1, "reason": "OS components"},
+    {"kind": "publisher", "value": "Microsoft Corporation", "action": "dampen", "factor": 0.1, "reason": "Microsoft signed"},
+    {"kind": "publisher", "value": "NVIDIA Corporation", "action": "dampen", "factor": 0.15, "reason": "GPU drivers"},
+    {"kind": "publisher", "value": "Discord Inc.", "action": "dampen", "factor": 0.2, "reason": "common game companion"},
+    {"kind": "directory", "value": "C:\\Windows\\System32", "action": "dampen", "factor": 0.1, "reason": "OS directory"},
+    {"kind": "directory", "value": "C:\\Windows\\SysWOW64", "action": "dampen", "factor": 0.1, "reason": "OS directory"},
+    {"kind": "hash", "value": "4444444444444444444444444444444444444444444444444444444444444444", "action": "dampen", "factor": 0.1, "reason": "trusted OS shell"}
+  ]
+}

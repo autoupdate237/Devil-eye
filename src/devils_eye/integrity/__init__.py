@@ -1,0 +1,1 @@
+"""Self-integrity / tamper awareness."""
