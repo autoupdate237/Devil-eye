@@ -74,3 +74,53 @@ jobs:
           name: DevilsEye-windows-onedir
           path: dist/DevilsEye/
           if-no-files-found: error
+
+  # -------------------------------------------------------------------
+  # Publish a GitHub Release with the EXE when a version tag (v*) is pushed
+  # -------------------------------------------------------------------
+  release:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package release files
+        shell: pwsh
+        run: |
+          Copy-Item artifacts\DevilsEye-windows-onefile\DevilsEye.exe .\DevilsEye-${{ github.ref_name }}-win64.exe
+          Compress-Archive artifacts\DevilsEye-windows-onedir\* DevilsEye-${{ github.ref_name }}-onedir.zip
+          Get-FileHash DevilsEye-${{ github.ref_name }}-win64.exe -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $($_.Path.Split('\')[-1])" } |
+            Out-File -Encoding ascii DevilsEye-${{ github.ref_name }}-sha256.txt
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            "DevilsEye-${{ github.ref_name }}-win64.exe" `
+            "DevilsEye-${{ github.ref_name }}-onedir.zip" `
+            "DevilsEye-${{ github.ref_name }}-sha256.txt" `
+            --title "Devil's Eye ${{ github.ref_name }}" `
+            --notes @"
+          Devil's Eye — defensive, evidence-driven Windows anti-cheat / integrity monitor.
+
+          **Double-click ``DevilsEye-${{ github.ref_name }}-win64.exe``** to run the full
+          one-click workflow: environment check → telemetry availability → process/module/
+          signature/driver/persistence inspection → correlation → risk scoring → report,
+          then the dashboard opens in your browser.
+
+          * ``DevilsEye-*-win64.exe`` — single-file executable
+          * ``DevilsEye-*-onedir.zip`` — folder build (faster start, easier AV review)
+          * SHA-256 checksum included for integrity verification
+          "@

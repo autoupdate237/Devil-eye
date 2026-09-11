@@ -83,26 +83,60 @@ def cmd_selftest(args) -> int:
 
 
 def cmd_oneclick() -> int:
-    """Double-click experience: full scan, report, then dashboard + browser."""
+    """Double-click experience: full scan, report, then dashboard + browser.
+
+    Designed for the packaged EXE: nothing is required from the user, the
+    console stays open for progress, errors pause instead of flashing away,
+    and a busy dashboard port automatically moves to the next free one.
+    """
+    import socket
+    import sys
     import threading
     import webbrowser
 
     from .api.server import serve
     from .pipeline.orchestrator import Orchestrator
 
-    port = 8080
-    print(f"{APP_NAME} v{__version__} — one-click workflow")
-    orch = Orchestrator()
-    session = orch.run(mode="scan")
-    v = session.verdict
-    print(f"VERDICT: {v.level}  score={v.score:.1f}/100  confidence={v.confidence:.0%}")
-    for path in session.report_paths:
-        print("report:", path)
-    print(f"Opening dashboard at http://127.0.0.1:{port}/ ...")
-    threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}/")).start()
-    serve(host="127.0.0.1", port=port, policy=orch.policy, initial_scan=False,
-          orchestrator=orch, seed_sessions=[session])
-    return 0
+    frozen = getattr(sys, "frozen", False)
+
+    def pick_port(start: int = 8080) -> int:
+        for port in range(start, start + 20):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("127.0.0.1", port))
+                    return port
+                except OSError:
+                    continue
+        return start
+
+    try:
+        print(f"{APP_NAME} v{__version__} — one-click workflow")
+        print("1/3 running full inspection ...")
+        orch = Orchestrator()
+        session = orch.run(mode="scan")
+        v = session.verdict
+        print(f"2/3 VERDICT: {v.level}  score={v.score:.1f}/100  confidence={v.confidence:.0%}")
+        for line in v.rationale[:5]:
+            print("    •", line)
+        for path in session.report_paths:
+            print("    report:", path)
+        port = pick_port()
+        url = f"http://127.0.0.1:{port}/"
+        print(f"3/3 opening dashboard at {url}  (close this console window to stop)")
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+        serve(host="127.0.0.1", port=port, policy=orch.policy, initial_scan=False,
+              orchestrator=orch, seed_sessions=[session])
+        return 0
+    except KeyboardInterrupt:
+        return 0
+    except Exception as exc:  # noqa: BLE001 — double-click must never flash-crash
+        print(f"\n[Devil's Eye] fatal error: {exc}")
+        if frozen:
+            try:
+                input("Press Enter to close this window...")
+            except (EOFError, OSError):
+                pass
+        return 1
 
 
 def main(argv=None) -> int:
