@@ -27,7 +27,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-ENTRY = SRC / "devils_eye" / "__main__.py"
+# NOTE: the entry point is a thin wrapper with absolute imports. Passing
+# src/devils_eye/__main__.py directly breaks because that module uses
+# package-relative imports.
+ENTRY = ROOT / "packaging" / "entrypoint.py"
 UI_PKG_PATH = "devils_eye/ui/static"           # destination inside the bundle
 ICON = ROOT / "packaging" / "devils_eye.ico"
 VERSION_FILE = ROOT / "packaging" / "version_info.txt"
