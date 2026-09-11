@@ -15,6 +15,9 @@ on:
     paths-ignore: ["ci-diagnostics/**"]    # diagnostic commits must not re-trigger
   workflow_dispatch:
 
+permissions:
+  contents: write        # needed to push ci-diagnostics/ failure logs back
+
 jobs:
   build-windows:
     runs-on: windows-latest
