@@ -86,11 +86,32 @@ python -m devils_eye scan --forensic
 python -m devils_eye serve --port 8080
 ```
 
-On Windows the project is packaged as a single EXE with PyInstaller
-(`scripts/build_exe.py`). Double-clicking it runs the full one-click workflow:
+## Building the Windows EXE
+
+PyInstaller cannot cross-compile, so the EXE is built **on Windows** — either
+locally or automatically in CI:
+
+```bat
+:: Option A — on any Windows machine (double-click this):
+scripts\build_exe.bat              :: → dist\DevilsEye.exe
+
+:: Option B — manual:
+pip install pyinstaller
+python scripts\build_exe.py --onefile    :: single EXE
+python scripts\build_exe.py              :: onedir (faster start)
+```
+
+```
+Option C — no Windows needed: every push runs
+.github/workflows/build-windows-exe.yml on a real windows-latest runner.
+Download the artifact from the Actions tab, or:
+gh run download <run-id> -n DevilsEye-windows-onefile
+```
+
+Double-clicking `DevilsEye.exe` runs the full one-click workflow:
 environment check → telemetry availability → protected-app discovery → process,
 module, file/signature, driver/service/task/persistence inspection → correlation
-→ scoring → final report.
+→ scoring → final report — then opens the dashboard in your browser.
 
 ## Repository layout
 

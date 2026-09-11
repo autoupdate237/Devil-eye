@@ -21,9 +21,9 @@ UI_DIR = Path(__file__).resolve().parents[1] / "ui" / "static"
 
 
 class DashboardState:
-    def __init__(self, orchestrator: Orchestrator):
+    def __init__(self, orchestrator: Orchestrator, sessions=None):
         self.orchestrator = orchestrator
-        self.sessions = []
+        self.sessions = list(sessions or [])
         self.running = False
         self.lock = threading.Lock()
 
@@ -175,9 +175,10 @@ def make_handler(state: DashboardState):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8080, policy: Optional[Policy] = None,
-          initial_scan: bool = True) -> None:
-    orchestrator = Orchestrator(policy=policy)
-    state = DashboardState(orchestrator)
+          initial_scan: bool = True, orchestrator: Optional[Orchestrator] = None,
+          seed_sessions=None) -> None:
+    orchestrator = orchestrator or Orchestrator(policy=policy)
+    state = DashboardState(orchestrator, sessions=seed_sessions)
     if initial_scan:
         state.run_scan(mode="scan")
     server = ThreadingHTTPServer((host, port), make_handler(state))

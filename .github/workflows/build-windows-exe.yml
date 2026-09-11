@@ -1,0 +1,60 @@
+# Builds Devil's Eye as a real Windows executable on every push (and on demand).
+#
+# Artifacts produced:
+#   * DevilsEye-windows-onefile  → single dist/DevilsEye.exe (double-click)
+#   * DevilsEye-windows-onedir   → dist/DevilsEye/ folder build (fast start)
+#
+# Download from the Actions tab of the repository, or use:
+#   gh run download <run-id> -n DevilsEye-windows-onefile
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main, "arena/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: Run test suite (any-OS core tests)
+        run: python -m unittest discover -s tests
+
+      - name: Generate icon (in case it is missing)
+        run: |
+          if (-not (Test-Path packaging\devils_eye.ico)) { python scripts\make_icon.py }
+
+      - name: Build single-file EXE
+        run: python scripts\build_exe.py --onefile
+
+      - name: Build onedir package
+        run: python scripts\build_exe.py --no-clean
+
+      - name: Smoke-test the EXE (selftest)
+        run: .\dist\DevilsEye.exe selftest
+
+      - name: Upload single-file EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevilsEye-windows-onefile
+          path: dist/DevilsEye.exe
+          if-no-files-found: error
+
+      - name: Upload onedir build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevilsEye-windows-onedir
+          path: dist/DevilsEye/
+          if-no-files-found: error

@@ -1,11 +1,16 @@
 """Devil's Eye CLI.
 
 Examples:
-    python -m devils_eye scan                 # full scan on this Windows host
+    python -m devils_eye                      # ONE-CLICK: full scan + dashboard + browser
+    python -m devils_eye scan                 # full scan only
     python -m devils_eye monitor --interval 10
     python -m devils_eye scan --forensic      # post-session forensic mode
     python -m devils_eye serve --port 8080
     python -m devils_eye selftest
+
+When packaged as DevilsEye.exe, double-clicking it runs the one-click
+workflow: environment check → telemetry availability → full inspection →
+correlation → scoring → report, then opens the dashboard in the browser.
 """
 
 from __future__ import annotations
@@ -77,10 +82,33 @@ def cmd_selftest(args) -> int:
     return 0 if not (report["changed"] or report["removed"]) else 1
 
 
+def cmd_oneclick() -> int:
+    """Double-click experience: full scan, report, then dashboard + browser."""
+    import threading
+    import webbrowser
+
+    from .api.server import serve
+    from .pipeline.orchestrator import Orchestrator
+
+    port = 8080
+    print(f"{APP_NAME} v{__version__} — one-click workflow")
+    orch = Orchestrator()
+    session = orch.run(mode="scan")
+    v = session.verdict
+    print(f"VERDICT: {v.level}  score={v.score:.1f}/100  confidence={v.confidence:.0%}")
+    for path in session.report_paths:
+        print("report:", path)
+    print(f"Opening dashboard at http://127.0.0.1:{port}/ ...")
+    threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}/")).start()
+    serve(host="127.0.0.1", port=port, policy=orch.policy, initial_scan=False,
+          orchestrator=orch, seed_sessions=[session])
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="devils-eye", description=f"{APP_NAME} — defensive Windows integrity monitor")
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
 
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--policy", type=str, default=None, help="path to a policy JSON file")
@@ -110,6 +138,9 @@ def main(argv=None) -> int:
     import logging
 
     setup_logging(logging.DEBUG if getattr(args, "verbose", False) else logging.INFO)
+    if getattr(args, "func", None) is None:
+        # No subcommand → one-click experience (double-click on the EXE).
+        return cmd_oneclick()
     return args.func(args)
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -18,12 +19,36 @@ from .errors import ConfigError
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def bundle_root() -> Path:
+    """Where bundled resources live at runtime.
+
+    * frozen (PyInstaller EXE): the extraction/internal directory that
+      contains the ``config/`` folder added via ``--add-data``;
+    * normal Python: the repository root.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", str(Path(sys.executable).parent)))
+    return REPO_ROOT
+
+
+def find_bundled(*relative: str) -> Optional[Path]:
+    """Locate a bundled resource file (bundle root first, repo root second)."""
+    for root in (bundle_root(), REPO_ROOT):
+        cand = root.joinpath(*relative)
+        if cand.exists():
+            return cand
+    return None
+
+
 def default_workspace() -> Path:
     """Session data root. On Windows a real deployment would use
-    %PROGRAMDATA%\\DevilsEye; we keep it relocatable via DEVILSEYE_HOME."""
+    %PROGRAMDATA%\\DevilsEye; we keep it relocatable via DEVILSEYE_HOME.
+    When frozen and no env var is set, data lives next to the EXE."""
     env = os.environ.get("DEVILSEYE_HOME")
     if env:
         return Path(env).expanduser()
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent / "DevilsEyeData"
     return REPO_ROOT / "data"
 
 
@@ -106,8 +131,7 @@ class Policy:
     def load(cls, path: Optional[Path] = None) -> "Policy":
         data: Dict[str, Any] = json.loads(json.dumps(DEFAULT_POLICY))
         if path is None:
-            candidate = REPO_ROOT / "config" / "default_policy.json"
-            path = candidate if candidate.exists() else None
+            path = find_bundled("config", "default_policy.json")
         if path is not None:
             if not Path(path).exists():
                 raise ConfigError(f"policy file not found: {path}")

@@ -45,9 +45,17 @@ def build_manifest() -> Dict[str, str]:
 def self_check(data_dir: Path) -> Dict[str, List[str]]:
     """Compare current files against the stored manifest. Returns
     {'status': [...], 'changed': [...], 'added': [...], 'removed': [...]}."""
+    import sys
+
+    report: Dict[str, List[str]] = {"status": [], "changed": [], "added": [], "removed": []}
+    if getattr(sys, "frozen", False):
+        # Frozen build: source files are packed inside the EXE; file-level
+        # manifesting is not applicable. Binary integrity is the OS/AV/WDAC's
+        # job there; we only record the fact.
+        report["status"].append("packaged build — file manifest check not applicable")
+        return report
     manifest_path = Path(data_dir) / "self_manifest.json"
     current = build_manifest()
-    report: Dict[str, List[str]] = {"status": [], "changed": [], "added": [], "removed": []}
     if not manifest_path.exists():
         try:
             manifest_path.parent.mkdir(parents=True, exist_ok=True)

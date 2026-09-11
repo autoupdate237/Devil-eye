@@ -20,10 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from ..core.config import REPO_ROOT, Policy
+from ..core.config import Policy, find_bundled
 from ..core.models import AllowlistEntry
-
-DEFAULT_ALLOWLIST_PATH = REPO_ROOT / "config" / "allowlist.json"
 
 
 @dataclass
@@ -41,9 +39,10 @@ class ReputationService:
     @staticmethod
     def _load_defaults() -> List[AllowlistEntry]:
         entries: List[AllowlistEntry] = []
-        if DEFAULT_ALLOWLIST_PATH.exists():
+        path = find_bundled("config", "allowlist.json")
+        if path is not None:
             try:
-                raw = json.loads(DEFAULT_ALLOWLIST_PATH.read_text(encoding="utf-8"))
+                raw = json.loads(path.read_text(encoding="utf-8"))
                 for item in raw.get("entries", []):
                     entries.append(AllowlistEntry(**item))
             except (json.JSONDecodeError, TypeError, KeyError):
