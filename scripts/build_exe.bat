@@ -5,6 +5,10 @@ REM  Output: dist\DevilsEye.exe   (single-file executable)
 REM ============================================================
 setlocal
 
+REM Force UTF-8 stdio — PyInstaller's Unicode output crashes on cp1252
+REM consoles when redirected, and this keeps the build deterministic.
+set PYTHONUTF8=1
+
 where py >nul 2>nul
 if %ERRORLEVEL%==0 (set "PY=py -3") else (set "PY=python")
 

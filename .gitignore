@@ -11,3 +11,4 @@ sessions/
 *.evtx
 *.etl
 *.spec
+ci-diagnostics/

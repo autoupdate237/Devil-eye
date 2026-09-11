@@ -21,6 +21,10 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      # Windows console code pages (cp1252) crash PyInstaller's Unicode
+      # output when stdout is redirected; force UTF-8 everywhere.
+      PYTHONUTF8: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,71 +45,18 @@ jobs:
           if (-not (Test-Path packaging\devils_eye.ico)) { python scripts\make_icon.py }
 
       - name: Build single-file EXE
-        id: onefile
-        continue-on-error: true
-        run: |
-          "cwd=$(Get-Location)" | Out-File -Encoding utf8 build-env.log
-          python --version 2>&1 | Out-File -Append -Encoding utf8 build-env.log
-          python -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)" 2>&1 | Out-File -Append -Encoding utf8 build-env.log
-          python -X utf8 -c "print('alive-probe')" > probe.log 2>&1
-          "probe_exit=$LASTEXITCODE probe_bytes=$((Get-Item probe.log).Length)" | Out-File -Append -Encoding utf8 build-env.log
-          python -X utf8 -c "import ast; ast.parse(open('scripts/build_exe.py', encoding='utf-8').read()); print('script parses OK')" 2>&1 | Out-File -Append -Encoding utf8 build-env.log
-          python -X utf8 scripts\build_exe.py --onefile > pyinstaller.log 2>&1
-          $code = $LASTEXITCODE
-          "build_exit_code=$code log_bytes=$((Get-Item pyinstaller.log).Length)" | Out-File -Append -Encoding utf8 build-env.log
-          Get-Content pyinstaller.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
-          exit $code
-
-      - name: Fallback single-file build (no icon/version resources)
-        if: steps.onefile.outcome == 'failure'
-        run: |
-          python -X utf8 scripts\build_exe.py --onefile --minimal > pyinstaller-minimal.log 2>&1
-          $code = $LASTEXITCODE
-          "fallback_exit_code=$code log_bytes=$((Get-Item pyinstaller-minimal.log).Length)" | Out-File -Append -Encoding utf8 build-env.log
-          Get-Content pyinstaller-minimal.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
-          exit $code
-
-      - name: Upload PyInstaller logs + diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyinstaller-diagnostics
-          path: |
-            pyinstaller.log
-            pyinstaller-minimal.log
-            build/DevilsEye/warn-DevilsEye.txt
-          if-no-files-found: ignore
-
-      - name: Surface error lines as annotations
-        if: always()
-        shell: powershell
-        run: |
-          foreach ($f in @("pyinstaller.log", "pyinstaller-minimal.log")) {
-            if (Test-Path $f) {
-              Select-String -Path $f -Pattern 'ERROR|CRITICAL|Traceback |raise |error:' |
-                Select-Object -Last 12 |
-                ForEach-Object { Write-Output "::error file=$f,line=$($_.LineNumber)::$($_.Line.Trim())" }
-            }
-          }
-
-      - name: Publish failure logs to the branch
-        if: failure()
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force ci-diagnostics | Out-Null
-          foreach ($f in @("pyinstaller.log", "pyinstaller-minimal.log", "build-env.log", "probe.log")) {
-            if (Test-Path $f) { Copy-Item $f ci-diagnostics\ }
-            else { "MISSING: $f" | Out-File -Encoding utf8 "ci-diagnostics\$f.missing.txt" }
-          }
-          git config user.name "devils-eye-ci"
-          git config user.email "ci@devils-eye.local"
-          git add ci-diagnostics
-          git status --short
-          git commit -m "CI: publish PyInstaller failure logs"
-          git push
+        run: python scripts\build_exe.py --onefile
 
       - name: Build onedir package
         run: python scripts\build_exe.py --no-clean
+
+      - name: Upload EXE artifacts summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path dist\DevilsEye.exe) {
+            "Single-file EXE built: $((Get-Item dist\DevilsEye.exe).Length) bytes" >> $env:GITHUB_STEP_SUMMARY
+          }
 
       - name: Smoke-test the EXE (selftest)
         run: .\dist\DevilsEye.exe selftest
