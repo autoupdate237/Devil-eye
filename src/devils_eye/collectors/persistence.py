@@ -59,13 +59,13 @@ class RegistryPersistenceCollector(Collector):
     ]
 
     def available(self, ctx: PipelineContext) -> TelemetryAvailability:
-        if winreg is None and not ctx.simulated:
+        if winreg is None:
             return TelemetryAvailability(self.name, False, "winreg unavailable (non-Windows)", self.weight, self.name)
         return TelemetryAvailability(self.name, True, "", self.weight, self.name)
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated or winreg is None:
+        if winreg is None:
             return r
         hives = {"HKLM": winreg.HKEY_LOCAL_MACHINE, "HKCU": winreg.HKEY_CURRENT_USER}
         for hive_name, key_path, value_filter, category in TARGETS:

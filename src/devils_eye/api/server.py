@@ -89,7 +89,6 @@ def make_handler(state: DashboardState):
                         "running": state.running,
                         "scan_count": len(state.sessions),
                         "latest": state.latest.to_dict() if state.latest else None,
-                        "simulated": state.orchestrator.simulated,
                     })
                 if p == "/api/verdict":
                     return self._json(state.latest.verdict.to_dict() if state.latest and state.latest.verdict else {})
@@ -176,13 +175,13 @@ def make_handler(state: DashboardState):
 
 
 def serve(host: str = "127.0.0.1", port: int = 8080, policy: Optional[Policy] = None,
-          simulated: bool = False, initial_scan: bool = True) -> None:
-    orchestrator = Orchestrator(policy=policy, simulated=simulated)
+          initial_scan: bool = True) -> None:
+    orchestrator = Orchestrator(policy=policy)
     state = DashboardState(orchestrator)
     if initial_scan:
         state.run_scan(mode="scan")
     server = ThreadingHTTPServer((host, port), make_handler(state))
-    print(f"Devil's Eye dashboard: http://{host}:{port}/  (simulated={simulated})", flush=True)
+    print(f"Devil's Eye dashboard: http://{host}:{port}/", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

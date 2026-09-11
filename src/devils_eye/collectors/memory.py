@@ -60,7 +60,7 @@ class MemoryCollector(Collector):
                 TelemetryAvailability(self.name, False, "disabled by policy", self.weight, "memory")
             )
             return r
-        if ctx.simulated or not is_windows():
+        if not is_windows():
             return r
         targets = [p for p in ctx.shared.get("processes") or []
                    if ctx.policy.is_protected_name(p.get("name") or "")]

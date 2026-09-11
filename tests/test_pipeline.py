@@ -1,4 +1,10 @@
-"""End-to-end pipeline tests against the simulated environment."""
+"""End-to-end pipeline tests.
+
+The pipeline is exercised on any OS by injecting the deterministic
+``FakeWindowsHostCollector`` (tests/fake_environment.py) as the collector
+set. The product code path under test is exactly the real one — only the
+collector list is swapped, which is the intended seam for CI.
+"""
 
 import sys
 import tempfile
@@ -6,17 +12,38 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # test fixtures
 
+import devils_eye.pipeline.orchestrator as orch_mod  # noqa: E402
+from devils_eye.collectors import registry  # noqa: E402
+from devils_eye.collectors.processes import ProcessCollector  # noqa: E402
 from devils_eye.core.config import Policy  # noqa: E402
 from devils_eye.pipeline.orchestrator import Orchestrator  # noqa: E402
+
+from fake_environment import FakeWindowsHostCollector  # noqa: E402
+
+ORIGINAL_ALL = registry.all_collectors
+
+
+def _use_collectors(cols):
+    """Point both the registry and the (already imported) orchestrator at a
+    custom collector list."""
+    registry.all_collectors = lambda: list(cols)
+    orch_mod.all_collectors = registry.all_collectors
 
 
 class PipelineTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        _use_collectors([FakeWindowsHostCollector()])
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.orch = Orchestrator(policy=Policy.load(), workspace=Path(cls.tmp.name), simulated=True)
+        cls.orch = Orchestrator(policy=Policy.load(), workspace=Path(cls.tmp.name))
         cls.session = cls.orch.run(mode="scan")
+
+    @classmethod
+    def tearDownClass(cls):
+        registry.all_collectors = ORIGINAL_ALL
+        orch_mod.all_collectors = ORIGINAL_ALL
 
     def test_scan_completes_with_verdict(self):
         self.assertIsNotNone(self.session.verdict)
@@ -64,43 +91,82 @@ class PipelineTest(unittest.TestCase):
             self.assertTrue(Path(p).exists())
             self.assertGreater(Path(p).stat().st_size, 1000)
 
-    def test_monitor_mode_reports_new_subjects(self):
+    def test_monitor_mode_second_pass_reports_no_new_subjects(self):
         session2 = self.orch.run(mode="monitor")
         self.assertIsNotNone(session2.verdict)
+        self.assertEqual(session2.new_subjects, [])
 
 
 class CollectorIsolationTest(unittest.TestCase):
-    def test_failing_collector_does_not_crash_pipeline(self):
-        from devils_eye.collectors import registry
-        from devils_eye.collectors.processes import ProcessCollector
+    """A crashing collector must never abort the pipeline (requirement 11/20)."""
 
+    def test_failing_collector_does_not_crash_pipeline(self):
         class Broken(ProcessCollector):
             name = "processes"
+            requires_windows = False  # allow the crash to happen on any OS
 
             def collect(self, ctx):
                 raise RuntimeError("boom")
 
-        original = registry.all_collectors
-
-        def patched(simulated=False):
-            cols = original(simulated)
-            cols = [Broken() if isinstance(c, ProcessCollector) else c for c in cols]
-            cols.append(Broken())  # simulated lists only the sim collector; inject anyway
-            return cols
-
-        import devils_eye.pipeline.orchestrator as orch_mod
-
-        registry.all_collectors = patched
-        orch_mod.all_collectors = patched
+        _use_collectors([FakeWindowsHostCollector(), Broken()])
         try:
             with tempfile.TemporaryDirectory() as tmp:
-                orch = Orchestrator(workspace=Path(tmp), simulated=True)
+                orch = Orchestrator(workspace=Path(tmp))
                 session = orch.run(mode="scan")
                 self.assertIsNotNone(session.verdict)
                 self.assertTrue(any("processes" in l.source for l in session.limitations))
         finally:
-            registry.all_collectors = original
-            orch_mod.all_collectors = original
+            registry.all_collectors = ORIGINAL_ALL
+            orch_mod.all_collectors = ORIGINAL_ALL
+
+
+class ThreadedScanTest(unittest.TestCase):
+    """The dashboard triggers scans from worker threads; the evidence store
+    must be thread-safe (regression test for SQLite same-thread error)."""
+
+    def test_scan_from_worker_thread(self):
+        import threading
+
+        _use_collectors([FakeWindowsHostCollector()])
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                orch = Orchestrator(workspace=Path(tmp))
+                errors = []
+
+                def worker():
+                    try:
+                        session = orch.run(mode="scan")
+                        assert session.verdict is not None
+                    except Exception as exc:  # noqa: BLE001
+                        errors.append(exc)
+
+                threads = [threading.Thread(target=worker) for _ in range(2)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(timeout=30)
+                self.assertEqual(errors, [])
+        finally:
+            registry.all_collectors = ORIGINAL_ALL
+            orch_mod.all_collectors = ORIGINAL_ALL
+
+
+class NonWindowsDegradationTest(unittest.TestCase):
+    """With NO collectors available the pipeline still completes: verdict is
+    evidence-poor and every source is listed as a limitation."""
+
+    def test_empty_host_still_reports(self):
+        _use_collectors([])
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                orch = Orchestrator(workspace=Path(tmp))
+                session = orch.run(mode="scan")
+                self.assertIsNotNone(session.verdict)
+                self.assertEqual(session.evidence_count, 0)
+                self.assertLessEqual(session.verdict.score, 10.0)
+        finally:
+            registry.all_collectors = ORIGINAL_ALL
+            orch_mod.all_collectors = ORIGINAL_ALL
 
 
 if __name__ == "__main__":

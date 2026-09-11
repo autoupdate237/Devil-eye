@@ -7,6 +7,6 @@
     {"kind": "publisher", "value": "Discord Inc.", "action": "dampen", "factor": 0.2, "reason": "common game companion"},
     {"kind": "directory", "value": "C:\\Windows\\System32", "action": "dampen", "factor": 0.1, "reason": "OS directory"},
     {"kind": "directory", "value": "C:\\Windows\\SysWOW64", "action": "dampen", "factor": 0.1, "reason": "OS directory"},
-    {"kind": "hash", "value": "4444444444444444444444444444444444444444444444444444444444444444", "action": "dampen", "factor": 0.1, "reason": "demo: cmd.exe"}
+    {"kind": "hash", "value": "4444444444444444444444444444444444444444444444444444444444444444", "action": "dampen", "factor": 0.1, "reason": "trusted OS shell"}
   ]
 }

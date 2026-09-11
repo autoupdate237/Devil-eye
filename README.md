@@ -73,10 +73,7 @@ Report + UI            (JSON/HTML report, local dashboard with 15 sections)
 ## Quick start
 
 ```bash
-# One-click full scan against the bundled simulated environment (any OS):
-python -m devils_eye scan --demo
-
-# One-click scan on a real Windows host:
+# One-click full scan on a Windows host:
 python -m devils_eye scan
 
 # Continuous monitoring (real-time mode):
@@ -116,7 +113,8 @@ src/devils_eye/
     reporting/           JSON + HTML reports
     api/                 local HTTP API (stdlib only)
     ui/                  static dashboard (vanilla JS, offline)
-tests/                   stdlib-unittest suite (runs on any OS)
+tests/                   stdlib-unittest suite + deterministic Windows-host
+                         fixture (fake_environment.py) used by CI on any OS
 ```
 
 ## Windows telemetry coverage

@@ -10,6 +10,7 @@
 │  processes · modules · memory(metadata) · signatures · registry persistence│
 │  services · scheduled tasks · WMI subscriptions · drivers · network        │
 │  defender · sysmon health · EVTX channels · ETW(opt-in) · forensic artifacts│
+│  (always real Windows telemetry; off-Windows ⇒ unavailable + limitations)   │
 │  (each collector isolated — failure ⇒ limitation record, never a crash)    │
 └──────────────────────────────┬─────────────────────────────────────────────┘
                                ▼
@@ -52,7 +53,6 @@ src/devils_eye/
   core/errors.py            error hierarchy (CollectorUnavailable, RuleError…)
   collectors/base.py        Collector ABC + run_collector isolation wrapper
   collectors/*.py           one module per source family (see §3)
-  collectors/simulated.py   deterministic dev/CI/demo environment
   normalization/normalizer  Evidence → HostSnapshot (indexed, cross-linked)
   evidence/store.py         SQLite evidence store (audit + forensic replay)
   correlation/engine.py     subject clustering, corroboration, tree linking
@@ -68,7 +68,8 @@ src/devils_eye/
   api/server.py             local stdlib HTTP API (no external deps)
   ui/static/                dashboard (vanilla JS, offline-capable)
 scripts/build_exe.py        PyInstaller packaging for the one-click EXE
-tests/                      27 unit/integration tests (any OS, stdlib only)
+tests/                      28 unit/integration tests (any OS, stdlib only)
+  fake_environment.py       test-only deterministic Windows-host fixture (CI)
 ```
 
 ## 3. Collectors ↔ source-catalog mapping (summary)

@@ -84,8 +84,7 @@ async function refresh() {
   $("#header-meta").textContent =
     `scan ${st.latest.scan_id} · mode ${st.latest.mode} · ` +
     `${st.latest.indicators_total} indicators (${st.latest.indicators_suppressed} suppressed) · ` +
-    `coverage ${(100 * (st.latest.coverage || 0)).toFixed(0)}% · ` +
-    (st.simulated ? "SIMULATED ENVIRONMENT" : "live host");
+    `coverage ${(100 * (st.latest.coverage || 0)).toFixed(0)}%`;
 
   /* dashboard */
   $("#kpis").innerHTML = [

@@ -32,8 +32,6 @@ class ProcessCollector(Collector):
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated:
-            return r  # simulated environment supplies its own process evidence
         if not is_windows():
             return r
         procs = self._via_psutil() or self._via_powershell()

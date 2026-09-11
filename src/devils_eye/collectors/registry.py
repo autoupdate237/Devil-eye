@@ -20,14 +20,11 @@ from .processes import ProcessCollector
 from .scheduled_tasks import ScheduledTaskCollector
 from .services import ServiceCollector
 from .signatures import SignatureCollector
-from .simulated import SimulatedEnvironmentCollector
 from .sysmon import SysmonCollector
 from .wmi_persist import WmiSubscriptionCollector
 
 
-def all_collectors(simulated: bool = False) -> List[Collector]:
-    if simulated:
-        return [SimulatedEnvironmentCollector()]
+def all_collectors() -> List[Collector]:
     return [
         ProcessCollector(),
         ModuleCollector(),

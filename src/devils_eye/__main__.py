@@ -1,10 +1,9 @@
 """Devil's Eye CLI.
 
 Examples:
-    python -m devils_eye scan                 # real Windows host
-    python -m devils_eye scan --demo          # simulated environment
+    python -m devils_eye scan                 # full scan on this Windows host
     python -m devils_eye monitor --interval 10
-    python -m devils_eye scan --forensic
+    python -m devils_eye scan --forensic      # post-session forensic mode
     python -m devils_eye serve --port 8080
     python -m devils_eye selftest
 """
@@ -27,7 +26,7 @@ def _load_policy(args) -> Policy:
 def cmd_scan(args) -> int:
     from .pipeline.orchestrator import Orchestrator
 
-    orch = Orchestrator(policy=_load_policy(args), simulated=args.demo, etw=args.etw)
+    orch = Orchestrator(policy=_load_policy(args), etw=args.etw)
     mode = "forensic" if args.forensic else "scan"
     session = orch.run(mode=mode)
     v = session.verdict
@@ -54,7 +53,7 @@ def cmd_scan(args) -> int:
 def cmd_monitor(args) -> int:
     from .pipeline.orchestrator import Orchestrator
 
-    orch = Orchestrator(policy=_load_policy(args), simulated=args.demo, etw=args.etw)
+    orch = Orchestrator(policy=_load_policy(args), etw=args.etw)
     for session in orch.monitor(interval=args.interval, iterations=args.iterations):
         v = session.verdict
         new = ", ".join(session.new_subjects) or "none"
@@ -66,7 +65,7 @@ def cmd_serve(args) -> int:
     from .api.server import serve
 
     serve(host=args.host, port=args.port, policy=_load_policy(args),
-          simulated=args.demo, initial_scan=not args.no_scan)
+          initial_scan=not args.no_scan)
     return 0
 
 
@@ -84,7 +83,6 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--demo", action="store_true", help="use the built-in simulated environment")
     common.add_argument("--policy", type=str, default=None, help="path to a policy JSON file")
     common.add_argument("--etw", action="store_true", help="opt-in: enable ETW trace capture")
     common.add_argument("--verbose", action="store_true")

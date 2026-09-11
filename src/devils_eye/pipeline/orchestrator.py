@@ -74,12 +74,11 @@ class ScanSession:
 
 class Orchestrator:
     def __init__(self, policy: Optional[Policy] = None, workspace: Optional[Path] = None,
-                 simulated: bool = False, etw: bool = False):
+                 etw: bool = False):
         self.policy = policy or Policy.load()
         if etw:
             self.policy.raw["etw_enabled"] = True
         self.workspace = Path(workspace) if workspace else default_workspace()
-        self.simulated = simulated
         self.store = EvidenceStore(self.workspace / "evidence.db")
         self._known_subjects: set = set()
 
@@ -88,10 +87,7 @@ class Orchestrator:
         session = ScanSession(scan_id=uuid.uuid4().hex[:12], mode=mode)
         session.store_path = str(self.store.path)
         self.store.begin_scan(session.scan_id, mode, json.dumps(self.policy.raw, default=str))
-        ctx = PipelineContext(
-            policy=self.policy, mode=mode, simulated=self.simulated,
-            workspace=self.workspace,
-        )
+        ctx = PipelineContext(policy=self.policy, mode=mode, workspace=self.workspace)
 
         # 1. environment check
         from ..core.platform_info import is_elevated, is_windows, os_description, username
@@ -99,13 +95,13 @@ class Orchestrator:
         session.self_integrity = self_check(self.workspace)
         env_note = (
             f"os={os_description()} user={username()} elevated={is_elevated()} "
-            f"windows={is_windows()} simulated={self.simulated}"
+            f"windows={is_windows()}"
         )
         log.info("environment: %s", env_note)
 
         # 2-3. collectors (isolated)
         evidences = []
-        for collector in all_collectors(simulated=self.simulated):
+        for collector in all_collectors():
             result = run_collector(collector, ctx)
             session.availability.extend(result.availability)
             for err in result.errors:

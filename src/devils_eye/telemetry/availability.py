@@ -24,11 +24,7 @@ def compute_coverage(rows: List[TelemetryAvailability]) -> Tuple[float, List[Tel
     coverage = max(0.0, min(1.0, available / total))
     limitations: List[TelemetryLimitation] = []
     available_names = {r.name for r in rows if r.available}
-    # In demo/CI mode the simulated environment stands in for every source.
-    simulated_mode = "simulated" in available_names
     for name in sorted(MANDATORY_FOR_HIGH_CONFIDENCE):
-        if simulated_mode:
-            continue
         if name not in available_names and not any(r.name == name and r.available for r in rows):
             reason = next((r.reason for r in rows if r.name == name), "not reported")
             limitations.append(

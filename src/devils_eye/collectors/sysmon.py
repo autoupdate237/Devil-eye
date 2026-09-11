@@ -32,7 +32,7 @@ class SysmonCollector(Collector):
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated or not is_windows():
+        if not is_windows():
             return r
         svc = run_cmd(["sc", "query", "Sysmon"], timeout=10) or run_cmd(
             ["sc", "query", "Sysmon64"], timeout=10

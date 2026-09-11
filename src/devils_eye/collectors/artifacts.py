@@ -54,7 +54,7 @@ class ArtifactCollector(Collector):
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated or not is_windows():
+        if not is_windows():
             return r
         self._prefetch(r)
         self._metadata_targets(r)

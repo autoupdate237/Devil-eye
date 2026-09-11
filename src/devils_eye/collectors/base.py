@@ -24,7 +24,6 @@ class PipelineContext:
     policy: Policy
     mode: str = "scan"                      # scan | monitor | forensic
     elevated: bool = False
-    simulated: bool = False
     workspace: Optional[Path] = None
     options: Dict[str, Any] = field(default_factory=dict)
     # Filled in by earlier collectors (e.g. process list for deep scans)
@@ -35,8 +34,8 @@ class Collector(abc.ABC):
     """Abstract collector.
 
     ``sources`` lists the catalog source names this collector feeds, so the
-    Telemetry Status panel can show 'which of the 2000 candidate sources are
-    reachable' at family granularity.
+    Telemetry Status panel can show which candidate sources are reachable at
+    family granularity.
     """
 
     name: str = "abstract"
@@ -51,7 +50,7 @@ class Collector(abc.ABC):
     # ------------------------------------------------------------------
     def available(self, ctx: PipelineContext) -> TelemetryAvailability:
         """Cheap availability probe. Default: requires Windows."""
-        if self.requires_windows and not ctx.simulated:
+        if self.requires_windows:
             from ..core.platform_info import is_windows
 
             if not is_windows():
@@ -79,7 +78,7 @@ def run_collector(collector: Collector, ctx: PipelineContext) -> CollectorResult
     try:
         availability = collector.available(ctx)
         result.availability.append(availability)
-        if not availability.available and not ctx.simulated:
+        if not availability.available:
             result.duration_s = time.monotonic() - started
             return result
         result = collector.collect(ctx)

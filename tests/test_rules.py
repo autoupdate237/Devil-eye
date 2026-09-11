@@ -5,18 +5,19 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # test fixtures
 
 from devils_eye.core.config import Policy  # noqa: E402
 from devils_eye.detection.engine import DetectionEngine, all_rules  # noqa: E402
-from devils_eye.collectors.simulated import SimulatedEnvironmentCollector  # noqa: E402
+from fake_environment import FakeWindowsHostCollector  # noqa: E402
 from devils_eye.collectors.base import PipelineContext  # noqa: E402
 from devils_eye.normalization.normalizer import Normalizer  # noqa: E402
 
 
 def build_snapshot():
     policy = Policy.load()
-    ctx = PipelineContext(policy=policy, simulated=True)
-    evidences = SimulatedEnvironmentCollector().collect(ctx).evidences
+    ctx = PipelineContext(policy=policy)
+    evidences = FakeWindowsHostCollector().collect(ctx).evidences
     return Normalizer().build(evidences, policy.protected_names), policy
 
 

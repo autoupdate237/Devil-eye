@@ -5,7 +5,7 @@ Phases are ordered so every phase ships a *useful, testable* increment.
 ## Phase 0 — Foundations (this repository, done ✅)
 - [x] Core data models (Evidence → Indicator → Verdict)
 - [x] Isolated collector framework + 15 collectors (real Windows backends)
-- [x] Deterministic simulated environment (dev/CI/demo)
+- [x] Deterministic Windows-host test fixture (tests/ only, not shipped in product)
 - [x] SQLite Evidence Store + forensic replay
 - [x] Correlation engine (clustering, corroboration factor, tree links)
 - [x] 22 detection rules across 14 categories, each with doc contract
@@ -56,8 +56,8 @@ Phases are ordered so every phase ships a *useful, testable* increment.
 
 ## Acceptance criteria per phase
 1. Every new collector ships with availability handling + limitation text.
-2. Every new rule ships with the 5-part doc contract + a firing test in the
-   simulated environment + a benign non-firing test.
+2. Every new rule ships with the 5-part doc contract + a firing test against
+   the tests/ fixture + a benign non-firing test.
 3. No phase may introduce write access to monitored processes/registry/files.
-4. False-positive regression suite: the benign simulated population must stay
+4. False-positive regression suite: the benign fixture population must stay
    ≤ LOW RISK under every new rule set.

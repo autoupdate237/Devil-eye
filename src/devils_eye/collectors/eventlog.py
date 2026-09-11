@@ -64,7 +64,7 @@ class EventLogCollector(Collector):
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated or not is_windows():
+        if not is_windows():
             return r
         for channel in self.channels:
             rows = powershell_json(

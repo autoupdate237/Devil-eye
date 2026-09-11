@@ -28,7 +28,7 @@ class WmiSubscriptionCollector(Collector):
 
     def collect(self, ctx: PipelineContext) -> CollectorResult:
         r = self._result()
-        if ctx.simulated or not is_windows():
+        if not is_windows():
             return r
         for kind, script in QUERIES:
             rows = powershell_json(f"{script} | ConvertTo-Json -Depth 4", timeout=45)

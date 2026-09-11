@@ -1,7 +1,8 @@
 """Platform detection and safe subprocess helpers.
 
-Devil's Eye runs its pipeline on any OS (a simulated environment is used for
-development/CI), but real telemetry collectors only activate on Windows.
+Devil's Eye collects real Windows telemetry; on a non-Windows host every
+collector reports itself unavailable (graceful degradation) instead of
+failing, so the pipeline and its reports still run everywhere.
 """
 
 from __future__ import annotations
