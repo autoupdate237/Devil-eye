@@ -45,17 +45,23 @@ jobs:
         continue-on-error: true
         shell: powershell
         run: |
-          python scripts\build_exe.py --onefile *>&1 | Tee-Object -FilePath pyinstaller.log
+          "cwd=$(Get-Location)" | Out-File -Encoding utf8 build-env.log
+          python --version 2>&1 | Out-File -Append -Encoding utf8 build-env.log
+          python -c "import PyInstaller; print('PyInstaller', PyInstaller.__version__)" 2>&1 | Out-File -Append -Encoding utf8 build-env.log
+          Get-ChildItem scripts | Out-String | Out-File -Append -Encoding utf8 build-env.log
+          python scripts\build_exe.py --onefile > pyinstaller.log 2>&1
+          $code = $LASTEXITCODE
           Get-Content pyinstaller.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
-          exit $LASTEXITCODE
+          exit $code
 
       - name: Fallback single-file build (no icon/version resources)
         if: steps.onefile.outcome == 'failure'
         shell: powershell
         run: |
-          python scripts\build_exe.py --onefile --minimal *>&1 | Tee-Object -FilePath pyinstaller-minimal.log
+          python scripts\build_exe.py --onefile --minimal > pyinstaller-minimal.log 2>&1
+          $code = $LASTEXITCODE
           Get-Content pyinstaller-minimal.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
-          exit $LASTEXITCODE
+          exit $code
 
       - name: Upload PyInstaller logs + diagnostics
         if: always()
@@ -85,15 +91,16 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force ci-diagnostics | Out-Null
-          Copy-Item pyinstaller.log ci-diagnostics\ -ErrorAction SilentlyContinue
-          Copy-Item pyinstaller-minimal.log ci-diagnostics\ -ErrorAction SilentlyContinue
+          foreach ($f in @("pyinstaller.log", "pyinstaller-minimal.log", "build-env.log")) {
+            if (Test-Path $f) { Copy-Item $f ci-diagnostics\ }
+            else { "MISSING: $f" | Out-File -Encoding utf8 "ci-diagnostics\$f.missing.txt" }
+          }
           git config user.name "devils-eye-ci"
           git config user.email "ci@devils-eye.local"
           git add ci-diagnostics
-          if (-not (git diff --cached --quiet)) {
-            git commit -m "CI: publish PyInstaller failure logs"
-            git push
-          }
+          git status --short
+          git commit -m "CI: publish PyInstaller failure logs"
+          git push
 
       - name: Build onedir package
         run: python scripts\build_exe.py --no-clean
