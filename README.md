@@ -90,9 +90,14 @@ python -m devils_eye serve --port 8080
 
 [![Build Windows EXE](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml/badge.svg)](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml)
 
+**Just want the EXE?** Download it from the
+[Releases page](https://github.com/autoupdate237/Rat/releases) — double-click
+`DevilsEye-<version>-win64.exe` and the full one-click workflow starts
+(inspection → verdict → report → dashboard in your browser).
+
 Every push builds `DevilsEye.exe` automatically on a real `windows-latest`
-runner (tests → build → smoke-test → upload). Download the artifact
-**`DevilsEye-windows-onefile`** from the
+runner (tests → build → smoke-test → upload), and every `v*` tag publishes a
+GitHub Release with the EXE + onedir zip + SHA-256. Download artifacts from the
 [Actions tab](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml),
 or build it yourself:
 
