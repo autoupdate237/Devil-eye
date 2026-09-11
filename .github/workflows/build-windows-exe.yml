@@ -37,7 +37,22 @@ jobs:
           if (-not (Test-Path packaging\devils_eye.ico)) { python scripts\make_icon.py }
 
       - name: Build single-file EXE
+        id: onefile
+        continue-on-error: true
         run: python scripts\build_exe.py --onefile
+
+      - name: Fallback single-file build (no icon/version resources)
+        if: steps.onefile.outcome == 'failure'
+        run: python scripts\build_exe.py --onefile --minimal
+
+      - name: Upload PyInstaller diagnostics on failure
+        if: steps.onefile.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyinstaller-diagnostics
+          path: |
+            build/DevilsEye/
+          if-no-files-found: ignore
 
       - name: Build onedir package
         run: python scripts\build_exe.py --no-clean

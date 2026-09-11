@@ -37,7 +37,7 @@ VERSION_FILE = ROOT / "packaging" / "version_info.txt"
 SEP = ";" if sys.platform == "win32" else ":"
 
 
-def build(onefile: bool = False, clean: bool = True) -> int:
+def build(onefile: bool = False, clean: bool = True, minimal: bool = False) -> int:
     if shutil.which("pyinstaller") is None and sys.platform == "win32":
         print("PyInstaller not found — installing...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
@@ -46,6 +46,7 @@ def build(onefile: bool = False, clean: bool = True) -> int:
         sys.executable, "-m", "PyInstaller",
         "--name", "DevilsEye",
         "--noconfirm",
+        "--log-level", "INFO",
         "--console",                          # show scan progress in the console
         "--paths", str(SRC),
         "--collect-submodules", "devils_eye",
@@ -59,10 +60,11 @@ def build(onefile: bool = False, clean: bool = True) -> int:
         cmd.append("--onedir")
     if clean:
         cmd.append("--clean")
-    if ICON.exists():
-        cmd += ["--icon", str(ICON)]
-    if VERSION_FILE.exists() and sys.platform == "win32":
-        cmd += ["--version-file", str(VERSION_FILE)]
+    if not minimal:
+        if ICON.exists():
+            cmd += ["--icon", str(ICON)]
+        if VERSION_FILE.exists() and sys.platform == "win32":
+            cmd += ["--version-file", str(VERSION_FILE)]
     cmd.append(str(ENTRY))
 
     print("running:", " ".join(f'"{c}"' if " " in c else c for c in cmd))
@@ -77,8 +79,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Build the Devil's Eye Windows EXE")
     ap.add_argument("--onefile", action="store_true", help="single DevilsEye.exe")
     ap.add_argument("--no-clean", action="store_true")
+    ap.add_argument("--minimal", action="store_true",
+                    help="skip icon + version resource (diagnostic fallback)")
     args = ap.parse_args()
-    return build(onefile=args.onefile, clean=not args.no_clean)
+    return build(onefile=args.onefile, clean=not args.no_clean, minimal=args.minimal)
 
 
 if __name__ == "__main__":
