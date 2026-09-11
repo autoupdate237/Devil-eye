@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "devils-eye"
+version = "0.1.0"
+description = "Devil's Eye - defensive, evidence-driven Windows anti-cheat / endpoint integrity monitor"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Devil's Eye Project" }]
+# Core runtime has ZERO hard dependencies (stdlib only) so the scanner always
+# starts. Optional integrations widen telemetry coverage when present.
+dependencies = []
+
+[project.optional-dependencies]
+win = ["psutil>=5.9", "pywin32>=306"]        # richer live process/module data
+dev = ["pytest>=7"]
+build = ["pyinstaller>=6"]
+
+[project.scripts]
+devils-eye = "devils_eye.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+devils_eye = ["ui/static/*", "ui/static/**/*"]

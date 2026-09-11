@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devil's Eye — Integrity Monitor</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<aside id="sidebar">
+  <div class="brand">😈 <b>Devil's Eye</b><span>integrity monitor</span></div>
+  <nav>
+    <a data-panel="dashboard" class="active">📊 Dashboard</a>
+    <a data-panel="live">🔴 Live Monitor</a>
+    <a data-panel="processes">🧩 Process Scanner</a>
+    <a data-panel="modules">🧬 Module Scanner</a>
+    <a data-panel="memory">🧠 Memory Integrity</a>
+    <a data-panel="files">📁 File Integrity</a>
+    <a data-panel="drivers">🛞 Driver Scanner</a>
+    <a data-panel="persistence">🪝 Persistence Scanner</a>
+    <a data-panel="telemetry">📡 Telemetry Status</a>
+    <a data-panel="correlation">🔗 Event Correlation</a>
+    <a data-panel="risk">⚖️ Risk Analysis</a>
+    <a data-panel="evidence">🔍 Evidence Viewer</a>
+    <a data-panel="reports">📑 Reports</a>
+    <a data-panel="settings">⚙️ Settings</a>
+    <a data-panel="allowlist">✅ Allowlist</a>
+  </nav>
+  <div class="footer">defensive · read-only · evidence-driven</div>
+</aside>
+
+<main>
+  <header>
+    <div id="verdict-pill" class="pill unknown">NO SCAN</div>
+    <div id="header-meta">run a scan to begin</div>
+    <div class="spacer"></div>
+    <button id="btn-scan" class="btn primary">▶ Run scan</button>
+    <button id="btn-monitor" class="btn">＋ Monitor pass</button>
+  </header>
+
+  <section id="panel-dashboard" class="panel active">
+    <div class="kpis" id="kpis"></div>
+    <h2>Rationale</h2><ul id="rationale"></ul>
+    <h2>Telemetry limitations</h2><ul id="limits"></ul>
+    <h2>Self integrity</h2><pre id="selfint"></pre>
+  </section>
+
+  <section id="panel-live" class="panel">
+    <p class="hint">Live Monitor repeats scans and shows only <b>new</b> subjects with findings. Use “Monitor pass” to trigger one.</p>
+    <table id="tbl-live"><thead><tr><th>Time</th><th>Scan</th><th>Verdict</th><th>New subjects</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-processes" class="panel">
+    <p class="hint">Every indicator: <b>What → Where → Evidence → Confidence → Risk contribution</b>.</p>
+    <table id="tbl-indicators">
+      <thead><tr><th>Rule</th><th>What</th><th>Where</th><th>Evidence</th><th>Confidence</th><th>Risk pts</th><th>Corrob.</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="panel-modules" class="panel">
+    <p class="hint">Module-related detections (unsigned-in-protected, masquerade, staged DLLs).</p>
+    <table id="tbl-modules"><thead><tr><th>Rule</th><th>What</th><th>Where</th><th>Evidence</th><th>Confidence</th><th>Risk pts</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-memory" class="panel">
+    <p class="hint">Read-only memory metadata: executable private regions and threads starting outside any module.</p>
+    <table id="tbl-memory"><thead><tr><th>Rule</th><th>What</th><th>Where</th><th>Evidence</th><th>Confidence</th><th>Risk pts</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-files" class="panel">
+    <p class="hint">Signature results and execution artifacts (Prefetch corroboration).</p>
+    <table id="tbl-sigs"><thead><tr><th>Path</th><th>Status</th><th>Publisher</th><th>Chain valid</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-drivers" class="panel">
+    <p class="hint">Kernel driver inventory + signature failures (highest category weight).</p>
+    <table id="tbl-drivers"><thead><tr><th>Rule</th><th>What</th><th>Where</th><th>Evidence</th><th>Confidence</th><th>Risk pts</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-persistence" class="panel">
+    <p class="hint">Run keys, Winlogon, IFEO, AppInit_DLLs, services, tasks, WMI subscriptions.</p>
+    <table id="tbl-persistence"><thead><tr><th>Rule</th><th>What</th><th>Where</th><th>Evidence</th><th>Confidence</th><th>Risk pts</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-telemetry" class="panel">
+    <p class="hint">Which of the Windows telemetry sources are reachable right now. Missing sources lower confidence — they never crash the scan.</p>
+    <table id="tbl-telemetry"><thead><tr><th>Source</th><th>Available</th><th>Note</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-correlation" class="panel">
+    <p class="hint">Subjects clustered by binary, with corroboration factor (independent evidence sources).</p>
+    <table id="tbl-correlation"><thead><tr><th>Subject</th><th>Indicators</th><th>Risk pts</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-risk" class="panel">
+    <h2>Score composition</h2>
+    <div id="risk-bars"></div>
+  </section>
+
+  <section id="panel-evidence" class="panel">
+    <p class="hint">Raw evidence behind every detection. Filter by subject path:</p>
+    <input id="ev-filter" placeholder="e.g. C:\Users\Public\Temp\updhelper.exe">
+    <table id="tbl-evidence"><thead><tr><th>ID</th><th>Kind</th><th>Source</th><th>Subject</th><th>Payload</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section id="panel-reports" class="panel">
+    <p class="hint">Latest JSON + HTML reports live under <code>data/reports/</code>.</p>
+    <a class="btn primary" href="/api/report" target="_blank">Open latest HTML report</a>
+    <pre id="report-list"></pre>
+  </section>
+
+  <section id="panel-settings" class="panel">
+    <h2>Active policy</h2><pre id="policy-json"></pre>
+    <h2>Allowlist entries</h2><pre id="allowlist-json"></pre>
+  </section>
+
+  <section id="panel-allowlist" class="panel">
+    <p class="hint">Entries that suppress/dampen risk. Edit <code>config/allowlist.json</code> and re-run a scan.</p>
+    <table id="tbl-allowlist"><thead><tr><th>Kind</th><th>Value</th><th>Action</th><th>Factor</th><th>Reason</th></tr></thead><tbody></tbody></table>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>
