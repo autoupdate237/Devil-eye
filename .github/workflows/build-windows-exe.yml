@@ -39,19 +39,29 @@ jobs:
       - name: Build single-file EXE
         id: onefile
         continue-on-error: true
-        run: python scripts\build_exe.py --onefile
+        shell: powershell
+        run: |
+          python scripts\build_exe.py --onefile *>&1 | Tee-Object -FilePath pyinstaller.log
+          Get-Content pyinstaller.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
+          exit $LASTEXITCODE
 
       - name: Fallback single-file build (no icon/version resources)
         if: steps.onefile.outcome == 'failure'
-        run: python scripts\build_exe.py --onefile --minimal
+        shell: powershell
+        run: |
+          python scripts\build_exe.py --onefile --minimal *>&1 | Tee-Object -FilePath pyinstaller-minimal.log
+          Get-Content pyinstaller-minimal.log -Tail 60 >> $env:GITHUB_STEP_SUMMARY
+          exit $LASTEXITCODE
 
-      - name: Upload PyInstaller diagnostics on failure
-        if: steps.onefile.outcome == 'failure'
+      - name: Upload PyInstaller logs + diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pyinstaller-diagnostics
           path: |
-            build/DevilsEye/
+            pyinstaller.log
+            pyinstaller-minimal.log
+            build/DevilsEye/warn-DevilsEye.txt
           if-no-files-found: ignore
 
       - name: Build onedir package

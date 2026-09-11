@@ -10,3 +10,4 @@ data/
 sessions/
 *.evtx
 *.etl
+*.spec
