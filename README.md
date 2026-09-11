@@ -88,8 +88,15 @@ python -m devils_eye serve --port 8080
 
 ## Building the Windows EXE
 
-PyInstaller cannot cross-compile, so the EXE is built **on Windows** — either
-locally or automatically in CI:
+[![Build Windows EXE](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml/badge.svg)](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml)
+
+Every push builds `DevilsEye.exe` automatically on a real `windows-latest`
+runner (tests → build → smoke-test → upload). Download the artifact
+**`DevilsEye-windows-onefile`** from the
+[Actions tab](https://github.com/autoupdate237/Rat/actions/workflows/build-windows-exe.yml),
+or build it yourself:
+
+PyInstaller cannot cross-compile, so local builds need **Windows**:
 
 ```bat
 :: Option A — on any Windows machine (double-click this):
