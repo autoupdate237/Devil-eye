@@ -12,6 +12,7 @@ on:
   push:
     branches: [main, "arena/**"]
     tags: ["v*"]
+    paths-ignore: ["ci-diagnostics/**"]    # diagnostic commits must not re-trigger
   workflow_dispatch:
 
 jobs:
@@ -63,6 +64,33 @@ jobs:
             pyinstaller-minimal.log
             build/DevilsEye/warn-DevilsEye.txt
           if-no-files-found: ignore
+
+      - name: Surface error lines as annotations
+        if: always()
+        shell: powershell
+        run: |
+          foreach ($f in @("pyinstaller.log", "pyinstaller-minimal.log")) {
+            if (Test-Path $f) {
+              Select-String -Path $f -Pattern 'ERROR|CRITICAL|Traceback |raise |error:' |
+                Select-Object -Last 12 |
+                ForEach-Object { Write-Output "::error file=$f,line=$($_.LineNumber)::$($_.Line.Trim())" }
+            }
+          }
+
+      - name: Publish failure logs to the branch
+        if: failure()
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force ci-diagnostics | Out-Null
+          Copy-Item pyinstaller.log ci-diagnostics\ -ErrorAction SilentlyContinue
+          Copy-Item pyinstaller-minimal.log ci-diagnostics\ -ErrorAction SilentlyContinue
+          git config user.name "devils-eye-ci"
+          git config user.email "ci@devils-eye.local"
+          git add ci-diagnostics
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "CI: publish PyInstaller failure logs"
+            git push
+          }
 
       - name: Build onedir package
         run: python scripts\build_exe.py --no-clean
